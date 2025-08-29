@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.simple
+      dockerfile: Dockerfile.offline
     container_name: stable_crm_app
     environment:
       - DATABASE_URL=postgres://postgres:postgres@postgres:5432/stable_crm_prod

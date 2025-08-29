@@ -1,0 +1,19 @@
+# Автономная версия без внешних зависимостей
+FROM elixir:1.15
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем конфигурацию
+COPY mix.exs mix.lock ./
+COPY config config/
+
+# Копируем исходный код
+COPY lib lib/
+COPY priv priv/
+
+# Компилируем без внешних зависимостей
+RUN mix compile --force
+
+# Запуск в режиме разработки (без релиза)
+CMD ["mix", "phx.server"]
