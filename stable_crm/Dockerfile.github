@@ -1,0 +1,28 @@
+# Версия с установкой Hex через GitHub
+FROM elixir:1.15
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем конфигурацию
+COPY mix.exs mix.lock ./
+COPY config config/
+
+# Устанавливаем Hex через GitHub (обход проблем с официальным репозиторием)
+RUN mix archive.install github hexpm/hex branch latest --force
+
+# Устанавливаем rebar
+RUN mix local.rebar --force
+
+# Устанавливаем зависимости
+RUN mix deps.get --only prod
+
+# Копируем исходный код
+COPY lib lib/
+COPY priv priv/
+
+# Компилируем
+RUN mix compile
+
+# Запуск
+CMD ["mix", "phx.server"]
