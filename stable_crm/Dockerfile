@@ -1,12 +1,20 @@
 # Multi-stage build for production
-FROM elixir:1.15-alpine as builder
+FROM ubuntu:22.04 as builder
 
-# Install build dependencies
-RUN apk add --no-cache \
-    build-base \
+# Устанавливаем Elixir и зависимости
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
     git \
     nodejs \
-    npm
+    npm \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем Erlang и Elixir
+RUN curl -fsSL https://packages.erlang-solutions.com/erlang-solutions_2.0_all.deb -o erlang-solutions_2.0_all.deb
+RUN dpkg -i erlang-solutions_2.0_all.deb
+RUN apt-get update && apt-get install -y esl-erlang elixir
 
 # Set working directory
 WORKDIR /app
@@ -38,16 +46,17 @@ RUN mix assets.deploy
 RUN mix do compile, release
 
 # Start a new build stage
-FROM alpine:3.19
+FROM ubuntu:22.04
 
 # Install runtime dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     openssl \
-    ncurses-libs \
-    libstdc++
+    libstdc++6 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app user
-RUN adduser -D -s /bin/sh app
+RUN useradd -m -u 1000 app
 
 # Set working directory
 WORKDIR /app
