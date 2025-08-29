@@ -1,5 +1,5 @@
 # Multi-stage build for production
-FROM elixir:1.15-ubuntu as builder
+FROM elixir:1.15 as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
