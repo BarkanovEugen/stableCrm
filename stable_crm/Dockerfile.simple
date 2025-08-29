@@ -1,0 +1,29 @@
+FROM elixir:1.15-alpine
+
+# Установка базовых пакетов
+RUN apk add --no-cache postgresql-client
+
+# Создание рабочей директории
+WORKDIR /app
+
+# Копирование конфигурации
+COPY mix.exs mix.lock ./
+COPY config config/
+
+# Установка зависимостей
+RUN mix local.hex --force && \
+    mix local.rebar --force && \
+    mix deps.get --only prod
+
+# Копирование исходного кода
+COPY lib lib/
+COPY priv priv/
+
+# Компиляция
+RUN mix compile
+
+# Создание релиза
+RUN mix release
+
+# Запуск
+CMD ["mix", "phx.server"]

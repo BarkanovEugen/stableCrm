@@ -1,59 +1,71 @@
-# Используем официальный образ Elixir
-FROM elixir:1.18-alpine AS builder
+# Multi-stage build for production
+FROM elixir:1.15-ubuntu as builder
 
-# Устанавливаем необходимые зависимости
-RUN apk add --no-cache build-base git nodejs npm
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    nodejs \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
-# Устанавливаем hex и rebar
+# Set working directory
+WORKDIR /app
+
+# Install hex + rebar
 RUN mix local.hex --force && \
     mix local.rebar --force
 
-# Создаем рабочую директорию
-WORKDIR /app
+# Set build environment
+ENV MIX_ENV=prod
 
-# Копируем файлы зависимостей
+# Install mix dependencies
 COPY mix.exs mix.lock ./
+RUN mix deps.get --only $MIX_ENV
+
+# Copy priv directory
+COPY priv priv
+
+# Copy config
 COPY config config
 
-# Устанавливаем зависимости
-RUN mix deps.get --only prod
-RUN mix deps.compile
-
-# Копируем исходный код
+# Copy lib
 COPY lib lib
-COPY priv priv
-COPY assets assets
 
-# Компилируем приложение
-RUN mix compile
+# Compile assets
 RUN mix assets.deploy
 
-# Создаем релиз
-RUN mix release
+# Compile the release
+RUN mix do compile, release
 
-# Создаем финальный образ
-FROM alpine:3.19
+# Start a new build stage
+FROM ubuntu:22.04
 
-# Устанавливаем необходимые зависимости
-RUN apk add --no-cache openssl ncurses-libs libstdc++
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    openssl \
+    libstdc++6 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Создаем пользователя для приложения
-RUN adduser -D -s /bin/sh app
+# Create app user
+RUN useradd -m -u 1000 app
 
-# Создаем рабочую директорию
+# Set working directory
 WORKDIR /app
 
-# Копируем релиз из builder образа
-COPY --from=builder /app/_build/prod/rel/stable_crm ./
+# Copy release from builder stage
+COPY --from=builder --chown=app:app /app/_build/prod/rel/stable_crm ./
 
-# Меняем владельца файлов
-RUN chown -R app:app /app
-
-# Переключаемся на пользователя app
+# Change to app user
 USER app
 
-# Открываем порт
+# Set environment
+ENV PHX_HOST=0.0.0.0
+ENV PORT=4000
+
+# Expose port
 EXPOSE 4000
 
-# Запускаем приложение
+# Run the release
 CMD ["bin/stable_crm", "start"]
