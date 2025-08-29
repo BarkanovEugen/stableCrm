@@ -1,13 +1,12 @@
 # Multi-stage build for production
-FROM elixir:1.15 as builder
+FROM elixir:1.15-alpine as builder
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apk add --no-cache \
+    build-base \
     git \
     nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+    npm
 
 # Set working directory
 WORKDIR /app
@@ -39,17 +38,16 @@ RUN mix assets.deploy
 RUN mix do compile, release
 
 # Start a new build stage
-FROM ubuntu:22.04
+FROM alpine:3.19
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     openssl \
-    libstdc++6 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    ncurses-libs \
+    libstdc++
 
 # Create app user
-RUN useradd -m -u 1000 app
+RUN adduser -D -s /bin/sh app
 
 # Set working directory
 WORKDIR /app
