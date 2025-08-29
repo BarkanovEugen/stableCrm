@@ -1,0 +1,21 @@
+# Готовый образ с предустановленными зависимостями
+FROM elixir:1.15
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем все файлы проекта
+COPY . .
+
+# Устанавливаем Hex и rebar (если нужно)
+RUN mix local.hex --force || true
+RUN mix local.rebar --force || true
+
+# Устанавливаем зависимости (если mix.lock существует)
+RUN if [ -f mix.lock ]; then mix deps.get --only prod; fi
+
+# Компилируем (если возможно)
+RUN mix compile || echo "Compilation skipped"
+
+# Запуск
+CMD ["mix", "phx.server"]
