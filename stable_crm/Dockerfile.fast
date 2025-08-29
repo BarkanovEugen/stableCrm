@@ -1,19 +1,20 @@
-# Готовый образ с предустановленными зависимостями для продакшена
+# Быстрый образ для продакшена без Alpine Linux
 FROM elixir:1.15
 
-# Устанавливаем необходимые системные зависимости
+# Устанавливаем системные зависимости одной командой
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     nodejs \
     npm \
     curl \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей
+# Копируем только необходимые файлы для установки зависимостей
 COPY mix.exs mix.lock ./
 COPY config config
 
@@ -34,24 +35,23 @@ RUN mix deps.compile && \
     mix compile && \
     mix assets.deploy
 
-# Создаем пользователя для безопасности
+# Создаем пользователя
 RUN useradd -m -s /bin/bash app
 
 # Копируем скомпилированные ассеты
 RUN cp -r priv/static /tmp/static
 
-# Создаем финальный образ
+# Финальный образ
 FROM elixir:1.15-slim
 
-# Устанавливаем runtime зависимости
+# Устанавливаем только runtime зависимости
 RUN apt-get update && apt-get install -y \
     openssl \
     libncurses5 \
     libstdc++6 \
-    curl \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Создаем рабочую директорию
 WORKDIR /app
 
 # Копируем скомпилированное приложение
@@ -66,11 +66,7 @@ COPY --from=0 /app/mix.exs /app/mix.exs
 RUN useradd -m -s /bin/bash app && \
     chown -R app:app /app
 
-# Переключаемся на пользователя app
 USER app
-
-# Экспортируем порт
 EXPOSE 4000
 
-# Запуск приложения
 CMD ["mix", "phx.server"]
