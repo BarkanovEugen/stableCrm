@@ -1,4 +1,4 @@
-# Автономная версия без внешних зависимостей
+# Автономная версия с установкой Hex
 FROM elixir:1.15
 
 # Создаем рабочую директорию
@@ -8,12 +8,19 @@ WORKDIR /app
 COPY mix.exs mix.lock ./
 COPY config config/
 
+# Устанавливаем Hex и rebar (обязательно для компиляции)
+RUN mix local.hex --force
+RUN mix local.rebar --force
+
+# Устанавливаем зависимости
+RUN mix deps.get --only prod
+
 # Копируем исходный код
 COPY lib lib/
 COPY priv priv/
 
-# Компилируем без внешних зависимостей
-RUN mix compile --force
+# Компилируем
+RUN mix compile
 
-# Запуск в режиме разработки (без релиза)
+# Запуск
 CMD ["mix", "phx.server"]
