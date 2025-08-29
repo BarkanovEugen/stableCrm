@@ -1,28 +1,31 @@
-FROM elixir:1.15-alpine
+# Простая версия с готовым образом Elixir
+FROM elixir:1.15
 
-# Установка базовых пакетов
-RUN apk add --no-cache postgresql-client
+# Устанавливаем только необходимые пакеты
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Создание рабочей директории
+# Создаем рабочую директорию
 WORKDIR /app
 
-# Копирование конфигурации
+# Копируем конфигурацию
 COPY mix.exs mix.lock ./
 COPY config config/
 
-# Установка зависимостей
+# Устанавливаем зависимости
 RUN mix local.hex --force && \
     mix local.rebar --force && \
     mix deps.get --only prod
 
-# Копирование исходного кода
+# Копируем исходный код
 COPY lib lib/
 COPY priv priv/
 
-# Компиляция
+# Компилируем
 RUN mix compile
 
-# Создание релиза
+# Создаем релиз
 RUN mix release
 
 # Запуск
