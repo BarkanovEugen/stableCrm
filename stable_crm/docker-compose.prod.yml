@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.ready
+    container_name: stable_crm_app_prod
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - PHX_HOST=${PHX_HOST}
+      - VK_ID_CLIENT_ID=${VK_ID_CLIENT_ID}
+      - VK_ID_CLIENT_SECRET=${VK_ID_CLIENT_SECRET}
+      - VK_ID_REDIRECT_URI=${VK_ID_REDIRECT_URI}
+      - PHX_SERVER=true
+      - PORT=4000
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    volumes:
+      - ./ssl:/app/ssl:ro
+    networks:
+      - stable_crm_network
+
+  postgres:
+    image: postgres:15
+    container_name: stable_crm_postgres_prod
+    environment:
+      POSTGRES_DB: stable_crm_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - stable_crm_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+
+networks:
+  stable_crm_network:
+    driver: bridge

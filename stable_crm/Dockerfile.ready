@@ -1,21 +1,72 @@
-# Готовый образ с предустановленными зависимостями
-FROM elixir:1.15
+# Готовый образ с предустановленными зависимостями для продакшена
+FROM elixir:1.15-alpine
+
+# Устанавливаем необходимые системные зависимости
+RUN apk add --no-cache \
+    build-base \
+    git \
+    nodejs \
+    npm
 
 # Создаем рабочую директорию
 WORKDIR /app
 
-# Копируем все файлы проекта
-COPY . .
+# Копируем файлы зависимостей
+COPY mix.exs mix.lock ./
+COPY config config
 
-# Устанавливаем Hex и rebar (если нужно)
-RUN mix local.hex --force || true
-RUN mix local.rebar --force || true
+# Устанавливаем Hex и rebar
+RUN mix local.hex --force && \
+    mix local.rebar --force
 
-# Устанавливаем зависимости (если mix.lock существует)
-RUN if [ -f mix.lock ]; then mix deps.get --only prod; fi
+# Устанавливаем зависимости
+RUN mix deps.get --only prod
 
-# Компилируем (если возможно)
-RUN mix compile || echo "Compilation skipped"
+# Копируем исходный код
+COPY lib lib
+COPY priv priv
+COPY assets assets
 
-# Запуск
+# Компилируем приложение
+RUN mix deps.compile && \
+    mix compile && \
+    mix assets.deploy
+
+# Создаем пользователя для безопасности
+RUN adduser -D -s /bin/sh app
+
+# Копируем скомпилированные ассеты
+RUN cp -r priv/static /tmp/static
+
+# Создаем финальный образ
+FROM elixir:1.15-alpine
+
+# Устанавливаем runtime зависимости
+RUN apk add --no-cache \
+    openssl \
+    ncurses-libs \
+    libstdc++
+
+# Создаем рабочую директорию
+WORKDIR /app
+
+# Копируем скомпилированное приложение
+COPY --from=0 /app/_build /app/_build
+COPY --from=0 /app/deps /app/deps
+COPY --from=0 /app/priv /app/priv
+COPY --from=0 /tmp/static /app/priv/static
+COPY --from=0 /app/config /app/config
+COPY --from=0 /app/mix.exs /app/mix.exs
+
+# Создаем пользователя
+RUN adduser -D -s /bin/sh app && \
+    chown -R app:app /app
+
+# Переключаемся на пользователя app
+USER app
+
+# Экспортируем порт
+EXPOSE 4000
+
+# Запуск приложения
 CMD ["mix", "phx.server"]
