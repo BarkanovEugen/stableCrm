@@ -8,8 +8,8 @@ WORKDIR /app
 COPY mix.exs mix.lock ./
 COPY config config/
 
-# Устанавливаем зависимости
-RUN mix local.hex --force && \
+# Устанавливаем зависимости через GitHub (обход проблем с сетью)
+RUN mix archive.install github hexpm/hex branch latest --force && \
     mix local.rebar --force && \
     mix deps.get --only prod
 
